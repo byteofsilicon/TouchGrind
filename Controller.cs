@@ -1,10 +1,10 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+
 /// <summary>
 /// Controlls the Boards movement.
 /// Forward movement, Turning, and stationary Rotation
-/// Checks if board is grounded so other classes can use this
 /// </summary>
 public class Controller : MonoBehaviour {
 
@@ -13,29 +13,27 @@ public class Controller : MonoBehaviour {
 	public WheelCollider frontLeftWheel;
 	public WheelCollider frontRightWheel;
 
+	public List<WheelCollider> wheels;
 	//public Joystick moveJoystick;
 
 	//eventually make all these part of a Player Stats Class
-	public float maxSteer = 20f;
-	public float maxSpeed = 10f;
-	public float maxBrake = 100f;
+	private float maxSteer = 20f;
+	private float maxSpeed = 10f;
+	private float maxBrake = 100f;
+	private float brakeClamp = 1.5f;
 
 	//for steering
-	private float _steer = 0.0f;
-	private float _speed = 0.0f;
-	private float _brake = 0.0f;
+	private float steer = 0.0f;
+	private float speed = 0.0f;
+	private float brake = 0.0f;
 
 	//for stationary rotation
-	private float _turnAnglePerFixedUpdate = 0.0f;
-	private float _angleVel = 0.3f;
-
-	public List<WheelCollider> wheels;
-
-	WheelHit hit;
+	private float turnAnglePerFixedUpdate = 0.0f;
+	private float angleVel = 0.3f;
 
 	//added 5/22/14 for test purposes
-	public float steerAmt = 5f;
-	public float speedAmt = 5f;
+	//private float steerAmt = 5f;
+	//private float speedAmt = 10f;
 
 	private bool isControlEnabled = true;
 	private bool isControlNormal = true;
@@ -43,20 +41,20 @@ public class Controller : MonoBehaviour {
 	// Use this for initialization
 	void Start () 
 	{
+		//make sure the center Of mass is in the middle of the Rigid Body
 		rigidbody.centerOfMass = new Vector3(0,0,0);
-	
+
 		wheels.Add(backLeftWheel);
 		wheels.Add(backRightWheel);
 		wheels.Add(frontLeftWheel);
 		wheels.Add(frontRightWheel);
 
 		//initialize controlles
-		frontLeftWheel.steerAngle = _steer;
-		frontRightWheel.steerAngle = _steer;
-		backLeftWheel.brakeTorque = _brake * maxBrake;
-		backRightWheel.brakeTorque =  _brake * maxBrake;
-		
-		_turnAnglePerFixedUpdate = _steer * _angleVel;
+		frontLeftWheel.steerAngle = steer;
+		frontRightWheel.steerAngle = steer;
+		backLeftWheel.brakeTorque = brake * maxBrake;
+		backRightWheel.brakeTorque =  brake * maxBrake;		
+		turnAnglePerFixedUpdate = steer * angleVel;
 	}
 
 	public void ResetWheelAngles()
@@ -91,45 +89,44 @@ public class Controller : MonoBehaviour {
 
 	private void ReverseControls()
 	{
-		backLeftWheel.steerAngle = _steer;
-		backRightWheel.steerAngle = _steer;
-		frontLeftWheel.brakeTorque = _brake * maxBrake;
-		frontRightWheel.brakeTorque =  _brake * maxBrake;
-		_speed = -_speed;
-		_brake = -_brake;
+		backLeftWheel.steerAngle = steer;
+		backRightWheel.steerAngle = steer;
+		frontLeftWheel.brakeTorque = brake * maxBrake;
+		frontRightWheel.brakeTorque =  brake * maxBrake;
+		speed = -speed;
+		brake = -brake;
 		
-		_turnAnglePerFixedUpdate = _steer * _angleVel;	
+		turnAnglePerFixedUpdate = steer * angleVel;	
 	}
+
 	private void NormalizeControls()
 	{
-		frontLeftWheel.steerAngle = _steer;
-		frontRightWheel.steerAngle = _steer;
-		backLeftWheel.brakeTorque = _brake * maxBrake;
-		backRightWheel.brakeTorque =  _brake * maxBrake;
+		frontLeftWheel.steerAngle = steer;
+		frontRightWheel.steerAngle = steer;
+		backLeftWheel.brakeTorque = brake * maxBrake;
+		backRightWheel.brakeTorque =  brake * maxBrake;
 		
-		_turnAnglePerFixedUpdate = _steer * _angleVel;	
+		turnAnglePerFixedUpdate = steer * angleVel;	
 	}
 
 	public void MovementInput()
 	{	
 		/*
 		//FOR JOYSTICK INPUT
-		_steer = moveJoystick.position.x * steerAmt;
-		_speed = moveJoystick.position.y * speedAmt;
-		_brake = -1 * Mathf.Clamp(moveJoystick.position.y, -1, 0);
+		steer = moveJoystick.position.x * steerAmt;
+		speed = moveJoystick.position.y * speedAmt;
+		brake = -1 * Mathf.Clamp(moveJoystick.position.y, -1, 0);
 		*/
-		//
+
 		
 		//FOR KEYBOARDINPUT		
 		if(isControlEnabled)
 		{
-			_steer = Input.GetAxis("Horizontal") * maxSteer;
-			
-			_speed = Input.GetAxis("Vertical") * 10;
-			
-			
-			_speed = Mathf.Clamp(Input.GetAxis("Vertical"), 0, 1) * 10;		
-			_brake = -1 * Mathf.Clamp(Input.GetAxis("Vertical"), -1, 0)* 1.5f;
+			steer = Input.GetAxis("Horizontal") * maxSteer;			
+			speed = Input.GetAxis("Vertical") * maxSpeed;		
+
+			speed = Mathf.Clamp(Input.GetAxis("Vertical"), 0, 1) * maxSpeed;		
+			brake = -1 * Mathf.Clamp(Input.GetAxis("Vertical"), -1, 0)* brakeClamp;
 
 		}
 		if(isControlNormal)
@@ -144,105 +141,21 @@ public class Controller : MonoBehaviour {
 
 	public void HandleMovement()
 	{
-		//print(rigidbody.velocity);
 		//handle stationary rotation
 		if(rigidbody.velocity.magnitude <= 1.2)//was .75
 		{	
-			Quaternion q = Quaternion.AngleAxis(_turnAnglePerFixedUpdate, transform.up) * transform.rotation;//for new model
+			Quaternion q = Quaternion.AngleAxis(turnAnglePerFixedUpdate, transform.up) * transform.rotation;//for new model
 			rigidbody.MoveRotation(q);
 		}
-		//handle movement
+		//handle forward movement
 		if((rigidbody.velocity.magnitude <= maxSpeed) )// && (!turning))
 		{
-			rigidbody.AddRelativeForce(Vector3.forward * _speed);
-			//rigidbody.AddRelativeForce(transform.forward * speed);
+			rigidbody.AddRelativeForce(Vector3.forward * speed);
 		}
 	}
 
 	public bool OllieInput()
 	{
 		return (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.R));//left mouse
-		//return false;
 	}
-
-	public string TrickInput()
-	{
-		if(Input.GetKey ("1"))//KickFlip
-			return "kickflip";
-		else if(Input.GetKey("2"))
-			return "popshuvit";
-		else if(Input.GetKey("3"))
-			return "threeshuv";
-		else if(Input.GetKey("4"))
-			return "varialkickflip";
-		else
-			return null;
-	}
-
 }
-
-/*
-	public void MovementInput(bool reverseControls,bool controlsDisabled)
-	{	
-
-		//FOR JOYSTICK INPUT
-		_steer = moveJoystick.position.x * steerAmt;
-		_speed = moveJoystick.position.y * speedAmt;
-		_brake = -1 * Mathf.Clamp(moveJoystick.position.y, -1, 0);
-
-		//		
-		//FOR KEYBOARDINPUT
-
-		if(!controlsDisabled)
-		{
-		_steer = Input.GetAxis("Horizontal") * maxSteer;
-
-		_speed = Input.GetAxis("Vertical") * 10;
-		
-		
-		_speed = Mathf.Clamp(Input.GetAxis("Vertical"), 0, 1) * 10;		
-		_brake = -1 * Mathf.Clamp(Input.GetAxis("Vertical"), -1, 0)* 1.5f;
-
-		}
-
-		//NOT USED
-		//_speed = Mathf.Clamp(moveJoystick.position.y, 0, 1) * speedAmt;
-		//_brake = -1 * Mathf.Clamp(moveJoystick.position.y, -1, 0)* 1.5f;	
-
-		if(!reverseControls)
-		{
-			frontLeftWheel.steerAngle = _steer;
-			frontRightWheel.steerAngle = _steer;
-			backLeftWheel.brakeTorque = _brake * maxBrake;
-			backRightWheel.brakeTorque =  _brake * maxBrake;
-			
-			_turnAnglePerFixedUpdate = _steer * _angleVel;	
-		}
-		//instead of doing it like this just monitor the velocity and when it has changed signes
-		//reverse the controls
-		else if(reverseControls)
-		{
-			backLeftWheel.steerAngle = _steer;
-			backRightWheel.steerAngle = _steer;
-			frontLeftWheel.brakeTorque = _brake * maxBrake;
-			frontRightWheel.brakeTorque =  _brake * maxBrake;
-			_speed = -_speed;
-			_brake = -_brake;
-
-			_turnAnglePerFixedUpdate = _steer * _angleVel;	
-		}
-	}
-
-*/
-/*
-	public bool FinishOllieInput()
-	{
-		if(Input.GetMouseButtonDown(1))//right mouse
-		{
-			return true;
-		}
-		return false;
-	}
-	*/
-
-//Quaternion q = Quaternion.AngleAxis(turnAnglePerFixedUpdate, transform.forward) * transform.rotation;//for old model
